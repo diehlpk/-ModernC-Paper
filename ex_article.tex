@@ -1,0 +1,386 @@
+% SIAM Article Template
+\documentclass[]{article}
+
+\usepackage{arxiv}
+
+\usepackage{xcolor}
+\definecolor{darkgreen}{rgb}{0.0, 0.5, 0.0}
+\definecolor{amaranth}{rgb}{0.9, 0.17, 0.31}
+\definecolor{azure}{rgb}{0.0, 0.5, 1.0}
+
+\usepackage{listings}
+
+\lstset{language=C++,
+ basicstyle=\ttfamily,
+ keywordstyle=\color{azure}\ttfamily,
+ stringstyle=\color{amaranth}\ttfamily,
+ commentstyle=\color{darkgreen}\ttfamily,
+ morecomment=[l][\color{magenta}]{\#},
+ breaklines=true
+}
+
+\usepackage{amsfonts}
+\usepackage{amsmath}
+
+\usepackage{hyperref}
+
+% Information that is shared between the article and the supplement
+% (title and author information, macros, packages, etc.) goes into
+% ex_shared.tex. If there is no supplement, this file can be included
+% directly.
+
+
+% Optional PDF information
+%\ifpdf
+%\hypersetup{
+%  pdftitle={Advanced Parallel Programming in C++},
+%  pdfauthor={P. Diehl}
+%}
+%\fi
+
+% The next statement enables references to information in the
+% supplement. See the xr-hyperref package for details.
+
+%% Use \myexternaldocument on Overleaf
+
+
+% FundRef data to be entered by SIAM
+%<funding-group>
+%<award-group>
+%<funding-source>
+%<named-content content-type="funder-name"> 
+%</named-content> 
+%<named-content content-type="funder-identifier"> 
+%</named-content>
+%</funding-source>
+%<award-id> </award-id>
+%</award-group>
+%</funding-group>
+
+\begin{document}
+
+\title{Advanced Parallel Programming in C++}
+
+\author{Patrick Diehl \\
+Center of Computation \& Technology \\
+Louisiana State University}
+
+\maketitle
+
+% REQUIRED
+\begin{abstract}
+  Many applied mathematics codes are based-on the C++ programming language, however, many of these codes do not utilize modern C++ features, especially the features for parallel computations provided by the recent C++ 17 standard. These features can greatly simplify parallel computations using multiple cores. This review briefly introduces asynchronous programming introduced in the C++ 11 standard and the parallel algorithms introduced in the C++ 17 standard. With these two paradigms, the C++ code can be accelerated using multiple cores using the C++ standard without any need of some external application interface, \emph{e.g.} OpenMP. As an outlook, we introduce the C++ standard library for parallelism and concurrency (HPX) which implements some proposed features of the upcoming C++ 20 standard.
+\end{abstract}
+
+% REQUIRED
+%\begin{keywords}
+%  example, \LaTeX
+%\end{keywords}
+
+
+
+% REQUIRED
+\section{Introduction}
+
+Many computational engineering codes are based-on the C++ programming language, however, many of these codes do not utilize modern C++ features, especially the features for parallel computations provided by the recent C++ 17 standard. 
+
+In this tutorial, participants will learn how to use C++17 functions and objects to write straightforward yet fully parallized code without the need of external tools such as OpenMP. Since the Python programming language is more commonly known by most potential attendees. The team will use Jupyter Notebooks with the Cling extension for C++ to walk attendees step by step through creating a fully parallized one-dimensional finite element code. Thus, attendees can use a programming environment they are familiar with. Because standard compiler distributions often lack complete support for this feature, our examples will use the HPX framework.
+
+In the second half of the tutorial, the team will demonstrate how users can employ nearly the same syntax to distribute these codes across a cluster. We will use the HPX library to provide the support needed to manage a distributed application. 
+
+The example code, the solutions, and the lecture slides will be available on GitHub, so attendees can use them after the short course. 
+
+After the short course, attendees will have learned about modern C++ features and how to run a parallel and distributed one-dimensional finite element solver using the mechanics built-in in the C++ 17 standard.
+
+
+% The outline is not required, but we show an example here.
+The paper is organized as follows. The asynchronous programming introduced in the C++ 11 standard is shown in Section~\ref{sec:async}. The parallel algorithms introduced in the C++ 17 standard are shown in Section~\ref{sec:parallel}. The conclusions follow in
+Section~\ref{sec:conclusions}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Asynchronous programming}
+\label{sec:async}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Parallel algorithms}
+\label{sec:parallel}
+A common opportunity for shared-memory parallel programming in C++ is Open Multi-Processing (OpenMP)~\cite{dagum1998openmp}. Let us look at the implementation of computing the square root of all elements in a vector $v$ of size $n$ 
+\begin{align}
+    v_i = \sqrt{v_i}, \; \forall i \in {1,\ldots,n}
+\end{align}
+in a parallel fashion using OpenMP, see Listing~\ref{lst:openmp}. In Line~\ref{lst:openmp:1}, a \lstinline|std::vector| is generated with the length $n=10000$ and in Line~\ref{lst:openmp:2} the vector is filled with random numbers using the algorithms provided by the C++ standard library. In Line~\ref{lst:openmp:5} a \lstinline|for| loop is used to iterate over the elements of the vector. Now, the \lstinline|#prgama|-based OpenMP API is used to parallize the \lstinline|for| loop. In Line~\ref{lst:openmp:4} the \lstinline|#prgama| to execute the loop in parallel is added. However, an additional API is needed to achieve the shared-memory parallelism. 
+
+\begin{lstlisting}[
+ basicstyle=\small\ttfamily,
+ caption=Example to compute the element-wise square root of a vector using OpenMP.,
+ label={lst:openmp},
+ float=htbp,
+ numbers=left,
+ escapechar=|,
+ tabsize=2,
+ numberstyle=\tiny,
+ numbersep=5pt,
+ belowskip=-0.8 \baselineskip,
+ escapechar=|
+ ]
+#include <cmath>
+#include <vector>
+#include <numeric>
+#include <random>
+#include <algorithm>
+   
+int main(void){
+   
+    size_t n = 10000;
+    // Generate the vector with the length
+    std::vector<double> v = std::vector<double>(n); |\label{lst:openmp:1}|
+    // Initilaize the vector with -1
+    std::generate(v.begin(),v.end(),std::rand);|\label{lst:openmp:2}|
+  
+    #pragma omp parallel for |\label{lst:openmp:4}|
+    for (size_t i = 0 ; i < v.size(); i++) |\label{lst:openmp:5}|
+        v[i] = std::sqrt(i);
+
+    return EXIT_SUCCESS;
+}
+\end{lstlisting}
+
+
+
+In the latest C++ 17 standard~\cite{cxx17_standard}, the so-called parallel algorithms were introduced. The shared-memory parallelism is based-on the thread building blocks (TBB)~\cite{10.5555/1352079.1352134} library. Now, it is possible to write parallel code directly using the C++ standard and there is no need to use a second API anymore. The C++ standard library contains $69$ algorithms which work on the so-called containers, like \lstinline|std::vector| or \lstinline|std::list|. In C++ 17 the so-called execution policies were introduced to these $69$ algorithms to execute them in parallel. First, we will look into the previous example, see Listing~\ref{lst:for:each}. Up to Line~\ref{lst:for:each:1} the code is identical, expect of the new header file \lstinline|#include <execution|, which is needed for the execution policies. In Line~\ref{lst:for:each:2} a vector containing the indices of each vector element is generated. In Line~\ref{lst:for:each:3} the OpenMP parallel \lstinline|for| loop is replaced by \lstinline|std::for_each| from the C++ standard library algorithms. Note that this was possible before, however, the first argument of this function the so-called execution policy defines that this algorithm is executed in parallel. The C++ 17 standard introduced the following execution policies:
+\begin{itemize}
+    \item \textbf{Sequential execution}:\\
+    By adding \lstinline|std::execution::seq| the algorithm is executed sequentially using one thread as in the previous C++ standards.
+    \item \textbf{Parallel execution}:\\
+    By adding \lstinline|std::execution::par| the algorithm is executed in parallel using all available threads. 
+    \item \textbf{Vectorized parallel execution} By adding \lstinline|std::execution::par_unseq| the algorithm is executed in parallel but in addition vectorization is used.
+\end{itemize}
+Now by specifying the execution policy in Line~\ref{lst:for:each:4} the algorithm is easily parallized. Note that this happened using the C++ standard and no external tool, like OpenMP, was needed.
+
+
+\begin{lstlisting}[
+ basicstyle=\small\ttfamily,
+ caption=Example to compute the element-wise square root of a vector using OpenMP.,
+ label={lst:for:each},
+ float=htbp,
+ numbers=left,
+ escapechar=|,
+ tabsize=2,
+ numberstyle=\tiny,
+ numbersep=5pt,
+ belowskip=-0.8 \baselineskip,
+ escapechar=|
+ ]
+#include <cmath>
+#include <vector>
+#include <numeric>
+#include <random>
+#include <algorithm>
+#include <execution>
+   
+int main(void){
+   
+    size_t n = 10000;
+    // Generate the vector with the length
+    std::vector<double> v = std::vector<double>(n); 
+    // Initilaize the vector with -1
+    std::generate(v.begin(),v.end(),std::rand);|\label{lst:for:each:1}|
+  
+    // Fill a new vector contaning the indicies |\label{lst:for:each:2}|     
+    std::vector<size_t> i = std::vector<size_t>(n);
+    std::iota(std::begin(i), std::end(i), 0);
+    
+    std::for_each(|\label{lst:for:each:3}| 
+        std::execution::par,|\label{lst:for:each:4}| 
+        i.begin(),
+        i.end(),
+        [&](auto&& item)
+        {
+            v[item] = std::sqrt(v[item]);
+        });
+
+    return EXIT_SUCCESS;
+}
+\end{lstlisting}
+
+Second, we will look into some small example to compute the sum $s$ of all elements in a vector $v$ with $n$ elements
+\begin{align}
+    s = \sum\limits_{i=0}^n v_i \text{,} 
+\end{align}
+see Listing~\ref{lst:reduce}. In Line~\ref{lst:reduce} a \lstinline|std::vector| with the length \lstinline|n| is generated. The first algorithm of the C++ Standard Library \lstinline|std::fill| is used to fill all elements with negative one, see Line~\ref{lst:reduce:2}. And finally, the second algorithm \lstinline|std::accumulate| is used to compute the sum of all elements. Note that the naive approach would be to use a \lstinline|for| loop to iterate over all the elements. In Line~\ref{lst:reduce:4} the result is printed for validation. Again, one can use the execution policies to easily parralize this code by just adding the execution policy in Line~\ref{lst:reduce:par:2} and Line~\ref{lst:reduce:par:3}, respectively. 
+
+\begin{lstlisting}[
+ basicstyle=\small\ttfamily,
+ caption=Example to compute the sum of all elements in the vector using the C++ standard library.,
+ label={lst:reduce},
+ float=tb,
+ numbers=left,
+ escapechar=|,
+ tabsize=2,
+ numberstyle=\tiny,
+ numbersep=5pt,
+ belowskip=-0.8 \baselineskip,
+ escapechar=|
+ ]
+#include <iostream>
+#include <vector>
+#include <numeric>
+
+int main(void){
+
+size_t n = 10000;
+// Generate the vector with the length
+std::vector<int> v = std::vector<int>(n); |\label{lst:reduce:1}|
+// Initilaize the vector with -1
+std::fill(n2.begin(),n2.end(),-1); |\label{lst:reduce:2}|
+// Compute the sum of all elements 
+int s = std::accumulate(v.begin(),v.end(),0.0); |\label{lst:reduce:3}|
+// Output the result
+std::cout << "Result= " << result << std::endl;|\label{lst:reduce:4}|
+
+return EXIT_SUCCESS;
+
+}
+\end{lstlisting}
+
+\begin{lstlisting}[
+ basicstyle=\small\ttfamily,
+ caption=Example to compute the sum of all elements in the vector using the parallel algorithms provided by the C++ 17 standard.,
+ label={lst:reduce:par},
+ float=htbp,
+ numbers=left,
+ escapechar=|,
+ tabsize=2,
+ numberstyle=\tiny,
+ numbersep=5pt,
+ belowskip=-0.8 \baselineskip,
+ escapechar=|
+ ]
+#include <iostream>
+#include <vector>
+#include <numeric> |\label{lst:reduce:par:1}|
+
+int main(void){
+
+size_t n = 10000;
+// Generate the vector with the length
+std::vector<int> v = std::vector<int>(n); 
+// Initilaize the vector with -1
+std::fill(std::execution::par,v.begin(),v.end(),-1); |\label{lst:reduce:par:2}|
+// Compute the sum of all elements 
+int s = std::reduce(std::execution::par,v.begin(),v.end(),0.0); |\label{lst:reduce:par:3}|
+// Output the result
+std::cout << "Result= " << result << std::endl;
+
+return EXIT_SUCCESS;
+
+}
+\end{lstlisting}
+
+These two small examples only showed few functions of the C++ 17 standard, which are experimentally supported by the GNU compiler collection (gcc) $\geq$ 9 and the Microsoft Visual Studio compiler (MVSC). However, the C++ standard library for parallelism and concurrency (HPX) implements many more of the defined features in the C++ 17 standard. Note that you can replace the \lstinline|std::| name space by \lstinline|hpx::| name space, since HPX strictly enhance the C++ 17 standard. We will show two small examples with new features which are not yet implemented in the major implementations. First, HPX provides some easier way to iterate over a vector without generating a vector of indices using \lstinline|std::for_each|, see Listing~\ref{lst:for:each}. Listing~\ref{lst:for:each:hpx} shows the simplification for iterating over the vector. In the previous example, we had to generate the vector of indices, which increases the memory consumption of the program. In Line~\ref{lst:for:each:hpx:loop}, we use a \lstinline|hpx::for_loop| which is more like the \lstinline|for| loop where the start index is provided as the second argument and the end index as the third argument. In the lambda function, we can access the index, $i$ which will go from zero up to \lstinline|v.size()|. 
+
+\begin{lstlisting}[
+ basicstyle=\small\ttfamily,
+ caption=Example to combine parallel algorithms with asynchronous programming.,
+ label={lst:reduce:hpx},
+ float=htbp,
+ numbers=left,
+ escapechar=|,
+ tabsize=2,
+ numberstyle=\tiny,
+ numbersep=5pt,
+ belowskip=-0.8 \baselineskip
+ ]
+#include <hpx/hpx_main.hpp>
+#include <hpx/include/parallel_for_loop.hpp>
+
+#include <cmath>
+#include <vector>
+#include <numeric>
+#include <random>
+#include <algorithm>
+
+int main(void) {
+  size_t n = 10000;
+  // Generate the vector with the length
+  std::vector<double> v = std::vector<double>(n);
+  // Initilaize the vector with -1
+  std::generate(v.begin(), v.end(), std::rand);
+
+  |\label{lst:for:each:hpx:loop}| hpx::for_loop(hpx::execution::par, 0, v.size(),
+                [&](boost::uint64_t i) { v[i] = std::sqrt(v[i]); }); 
+
+  return EXIT_SUCCESS;
+}
+
+\end{lstlisting}
+
+
+Another feature which is not yet in the experimental implementation of the C++ 17 standard is to obtain a future from the parallel algorithm to integrate the parallel algorithm within the asynchronous execution graph. Listing~\ref{lst:for:each:hpx} shows how to obtain a \lstinline|hpx::future| from the parallel algorithm. In Line~\ref{lst:for:each:hpx:1} we just replaced the namespace \lstinline|std| by the name space \lstinline|hpx| since the both APIs are complement. In Line~\ref{} we changed the namespace, but in addition we added \lstinline|hpx::execution::task| as an additional parameter to the execution policy \lstinline|hpx::execution::par|. Before, the parallel algorithm returned a \lstinline|double| value and now the return value is wrapped into a future which can be used in the asynchronous execution graph. 
+
+\begin{lstlisting}[
+ basicstyle=\small\ttfamily,
+ caption=Example to compute the sum of all elements in the vector using the parallel algorithms provided by HPX.,
+ label={lst:for:each:hpx},
+ float=htbp,
+ numbers=left,
+ escapechar=|,
+ tabsize=2,
+ numberstyle=\tiny,
+ numbersep=5pt,
+ belowskip=-0.8 \baselineskip
+ ]
+#include <hpx/hpx_main.hpp>
+#include <hpx/include/parallel_reduce.hpp>
+#include <hpx/parallel/algorithms/fill.hpp>
+
+#include <iostream>
+#include <vector>
+#include <numeric>
+
+int main(void) {
+  size_t n = 10000;
+  // Generate the vector with the length
+  std::vector<int> v = std::vector<int>(n);
+  // Initilaize the vector with -1
+  hpx::fill(hpx::execution::par, v.begin(), v.end(), -1); |\label{lst:for:each:hpx:1}|
+  // Compute the sum of all elements
+
+  hpx::future<double> f = hpx::ranges::reduce(
+      hpx::execution::par(hpx::execution::task), v.begin(), v.end(), 0.0);
+  // Output the result
+  std::cout << "Result= " << f.get() << std::endl;
+
+  return EXIT_SUCCESS;
+}
+
+\end{lstlisting}
+
+
+
+
+
+
+
+
+
+
+
+
+\section{Conclusions}
+\label{sec:conclusions}
+
+Some conclusions here.
+
+
+\appendix
+
+\section*{Supplementary materials}
+The source code of all the examples is available on GitHub\footnote{\url{https://github.com/diehlpk/modern-cpp-examples}} or Zenodo~\cite{}, respectively. The build system CMake is used to compile all the examples.  
+
+\section*{Acknowledgments}
+I would like to acknowledge the students of the course ``Parallel Computational Math'' offered at the Mathematics Department at Louisiana State University for their feedback while teaching these modern C++ features as part of the course.
+
+\bibliographystyle{plain}
+\bibliography{references}
+\end{document}
